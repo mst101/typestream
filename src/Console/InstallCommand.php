@@ -3,6 +3,7 @@
 namespace Laravel\Jetstream\Console;
 
 use Exception;
+use Faker\Core\File;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Console\PromptsForMissingInput;
 use Illuminate\Filesystem\Filesystem;
@@ -36,6 +37,7 @@ class InstallCommand extends Command implements PromptsForMissingInput
                                               {--verification : Indicates if email verification support should be installed}
                                               {--pest : Indicates if Pest should be installed}
                                               {--ssr : Indicates if Inertia SSR support should be installed}
+                                              {--typescript : Indicates if Inertia TypeScript support should be installed}
                                               {--composer=global : Absolute path to the Composer binary which should be used to install packages}';
 
     /**
@@ -98,7 +100,12 @@ class InstallCommand extends Command implements PromptsForMissingInput
                 return 1;
             }
         } elseif ($this->argument('stack') === 'inertia') {
-            if (! $this->installInertiaStack()) {
+            $withTypeScript = $this->option('typescript');
+            $installInertiaSuccessful = $withTypeScript
+                ? $this->installInertiaTypeScriptStack()
+                : $this->installInertiaStack();
+
+            if (! $installInertiaSuccessful) {
                 return 1;
             }
         }
@@ -173,7 +180,7 @@ class InstallCommand extends Command implements PromptsForMissingInput
         });
 
         // Tailwind Configuration...
-        copy(__DIR__.'/../../stubs/livewire/tailwind.config.js', base_path('tailwind.config.js'));
+        copy(__DIR__.'/../../stubs/livewire/tailwind.config.js', base_path('tailwind.config.ts'));
         copy(__DIR__.'/../../stubs/livewire/postcss.config.js', base_path('postcss.config.js'));
         copy(__DIR__.'/../../stubs/livewire/vite.config.js', base_path('vite.config.js'));
 
@@ -359,7 +366,7 @@ EOF;
         });
 
         // Tailwind Configuration...
-        copy(__DIR__.'/../../stubs/inertia/tailwind.config.js', base_path('tailwind.config.js'));
+        copy(__DIR__.'/../../stubs/inertia/tailwind.config.js', base_path('tailwind.config.ts'));
         copy(__DIR__.'/../../stubs/inertia/postcss.config.js', base_path('postcss.config.js'));
         copy(__DIR__.'/../../stubs/inertia/vite.config.js', base_path('vite.config.js'));
 
@@ -484,21 +491,194 @@ EOF;
     }
 
     /**
+     * Install the Inertia stack into the application.
+     *
+     * @return bool
+     */
+    protected function installInertiaTypeScriptStack()
+    {
+        // Install Inertia...
+        if (! $this->requireComposerPackages('inertiajs/inertia-laravel:^1.0', 'tightenco/ziggy:^2.0')) {
+            return false;
+        }
+
+        $this->call('install:api', [
+            '--without-migration-prompt' => true,
+        ]);
+
+        // Install NPM packages...
+        $this->updateNodePackages(function ($packages) {
+            return [
+                    '@inertiajs/vue3' => '^1.0.14',
+                    '@tailwindcss/forms' => '^0.5.7',
+                    '@tailwindcss/typography' => '^0.5.10',
+                    '@types/node' => '^20.12.12',
+                    '@vitejs/plugin-vue' => '^5.0.0',
+                    'autoprefixer' => '^10.4.16',
+                    'postcss' => '^8.4.32',
+                    'tailwindcss' => '^3.4.0',
+                    'vue' => '^3.3.13',
+                    'vue-tsc' => '^2.0.19',
+                    'typescript' => '^5.4.5'
+                ] + $packages;
+        });
+
+        // Tailwind Configuration...
+        copy(__DIR__.'/../../stubs/inertia-ts/tailwind.config.ts', base_path('tailwind.config.ts'));
+        copy(__DIR__.'/../../stubs/inertia-ts/postcss.config.js', base_path('postcss.config.js'));
+        copy(__DIR__.'/../../stubs/inertia-ts/vite.config.ts', base_path('vite.config.ts'));
+        copy(__DIR__.'/../../stubs/inertia-ts/vite.config.ts', base_path('vite.config.ts'));
+
+        // tscsonfig.json...
+        copy(__DIR__.'/../../stubs/inertia-ts/tsconfig.json', base_path('tsconfig.json'));
+
+        // Directories...
+        (new Filesystem)->ensureDirectoryExists(app_path('Actions/Fortify'));
+        (new Filesystem)->ensureDirectoryExists(app_path('Actions/Jetstream'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('css'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Components'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Layouts'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Pages'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Pages/API'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Pages/Auth'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('js/Pages/Profile'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('views'));
+        (new Filesystem)->ensureDirectoryExists(resource_path('markdown'));
+
+        (new Filesystem)->deleteDirectory(resource_path('sass'));
+
+        // Cleanup scaffolded JS files...
+        (new Filesystem)->delete(base_path('vite.config.js'));
+        (new Filesystem)->delete(base_path('tailwind.config.js'));
+        (new Filesystem)->delete(resource_path('js/app.js'));
+        (new Filesystem)->delete(resource_path('js/bootstrap.js'));
+
+        // Terms Of Service / Privacy Policy...
+        copy(__DIR__.'/../../stubs/resources/markdown/terms.md', resource_path('markdown/terms.md'));
+        copy(__DIR__.'/../../stubs/resources/markdown/policy.md', resource_path('markdown/policy.md'));
+
+        // Service Providers...
+        copy(__DIR__.'/../../stubs/app/Providers/JetstreamServiceProvider.php', app_path('Providers/JetstreamServiceProvider.php'));
+        ServiceProvider::addProviderToBootstrapFile('App\Providers\JetstreamServiceProvider');
+
+        // Middleware...
+        (new Filesystem)->ensureDirectoryExists(app_path('Http/Middleware'));
+        (new Process([$this->phpBinary(), 'artisan', 'inertia:middleware', 'HandleInertiaRequests', '--force'], base_path()))
+            ->setTimeout(null)
+            ->run(function ($type, $output) {
+                $this->output->write($output);
+            });
+
+        $this->installMiddleware([
+            '\App\Http\Middleware\HandleInertiaRequests::class',
+            '\Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class',
+        ]);
+
+        // Models...
+        copy(__DIR__.'/../../stubs/app/Models/User.php', app_path('Models/User.php'));
+
+        // Factories...
+        copy(__DIR__.'/../../database/factories/UserFactory.php', base_path('database/factories/UserFactory.php'));
+
+        // Actions...
+        copy(__DIR__.'/../../stubs/app/Actions/Fortify/CreateNewUser.php', app_path('Actions/Fortify/CreateNewUser.php'));
+        copy(__DIR__.'/../../stubs/app/Actions/Fortify/UpdateUserProfileInformation.php', app_path('Actions/Fortify/UpdateUserProfileInformation.php'));
+        copy(__DIR__.'/../../stubs/app/Actions/Jetstream/DeleteUser.php', app_path('Actions/Jetstream/DeleteUser.php'));
+
+        // Blade Views...
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/views/app.blade.php', resource_path('views/app.blade.php'));
+
+        if (file_exists(resource_path('views/welcome.blade.php'))) {
+            unlink(resource_path('views/welcome.blade.php'));
+        }
+
+        // Inertia Pages...
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/Dashboard.vue', resource_path('js/Pages/Dashboard.vue'));
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/PrivacyPolicy.vue', resource_path('js/Pages/PrivacyPolicy.vue'));
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/TermsOfService.vue', resource_path('js/Pages/TermsOfService.vue'));
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/Welcome.vue', resource_path('js/Pages/Welcome.vue'));
+
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/Components', resource_path('js/Components'));
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/Layouts', resource_path('js/Layouts'));
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/API', resource_path('js/Pages/API'));
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/Auth', resource_path('js/Pages/Auth'));
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/Pages/Profile', resource_path('js/Pages/Profile'));
+
+        // Types...
+        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia-ts/resources/js/types', resource_path('js/types'));
+
+        copy(__DIR__.'/../../stubs/inertia-ts/routes/web.php', base_path('routes/web.php'));
+
+        // Assets...
+        copy(__DIR__.'/../../stubs/resources/css/app.css', resource_path('css/app.css'));
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/app.ts', resource_path('js/app.ts'));
+        copy(__DIR__.'/../../stubs/inertia-ts/resources/js/bootstrap.ts', resource_path('js/bootstrap.ts'));
+
+        // Tests...
+        $stubs = $this->getTestStubsPath();
+
+        // We can re-utilize the same tests from the inertia stub files, those won't change
+        copy($stubs.'/inertia/ApiTokenPermissionsTest.php', base_path('tests/Feature/ApiTokenPermissionsTest.php'));
+        copy($stubs.'/inertia/BrowserSessionsTest.php', base_path('tests/Feature/BrowserSessionsTest.php'));
+        copy($stubs.'/inertia/CreateApiTokenTest.php', base_path('tests/Feature/CreateApiTokenTest.php'));
+        copy($stubs.'/inertia/DeleteAccountTest.php', base_path('tests/Feature/DeleteAccountTest.php'));
+        copy($stubs.'/inertia/DeleteApiTokenTest.php', base_path('tests/Feature/DeleteApiTokenTest.php'));
+        copy($stubs.'/inertia/ProfileInformationTest.php', base_path('tests/Feature/ProfileInformationTest.php'));
+        copy($stubs.'/inertia/TwoFactorAuthenticationSettingsTest.php', base_path('tests/Feature/TwoFactorAuthenticationSettingsTest.php'));
+        copy($stubs.'/inertia/UpdatePasswordTest.php', base_path('tests/Feature/UpdatePasswordTest.php'));
+
+        // Teams...
+        if ($this->option('teams')) {
+            $this->installInertiaTeamStack('inertia-ts');
+        }
+
+        if ($this->option('ssr')) {
+            $this->installInertiaSsrStack(true);
+        }
+
+        if (! $this->option('dark')) {
+            $this->removeDarkClasses((new Finder)
+                ->in(resource_path('js'))
+                ->name('*.vue')
+                ->notPath('Pages/Welcome.vue')
+            );
+        }
+
+        if (file_exists(base_path('pnpm-lock.yaml'))) {
+            $this->runCommands(['pnpm install', 'pnpm run build']);
+        } elseif (file_exists(base_path('yarn.lock'))) {
+            $this->runCommands(['yarn install', 'yarn run build']);
+        } else {
+            $this->runCommands(['npm install', 'npm run build']);
+        }
+
+        $this->line('');
+        $this->runDatabaseMigrations();
+
+        $this->components->info('Inertia scaffolding installed successfully.');
+
+        return true;
+    }
+
+    /**
      * Install the Inertia team stack into the application.
+     *
+     * @param string $inertiaStubPath
      *
      * @return void
      */
-    protected function installInertiaTeamStack()
+    protected function installInertiaTeamStack($inertiaStubPath = 'inertia')
     {
         // Directories...
         (new Filesystem)->ensureDirectoryExists(resource_path('js/Pages/Profile'));
 
         // Pages...
-        (new Filesystem)->copyDirectory(__DIR__.'/../../stubs/inertia/resources/js/Pages/Teams', resource_path('js/Pages/Teams'));
+        (new Filesystem)->copyDirectory(__DIR__."/../../stubs/$inertiaStubPath/resources/js/Pages/Teams", resource_path('js/Pages/Teams'));
 
         // Tests...
         $stubs = $this->getTestStubsPath();
 
+        // Use the default inertia stack team pages, these won't change with TS support
         copy($stubs.'/inertia/CreateTeamTest.php', base_path('tests/Feature/CreateTeamTest.php'));
         copy($stubs.'/inertia/DeleteTeamTest.php', base_path('tests/Feature/DeleteTeamTest.php'));
         copy($stubs.'/inertia/InviteTeamMemberTest.php', base_path('tests/Feature/InviteTeamMemberTest.php'));
@@ -562,9 +742,11 @@ EOF;
     /**
      * Install the Inertia SSR stack into the application.
      *
+     * @param bool $useTypeScript
+     *
      * @return void
      */
-    protected function installInertiaSsrStack()
+    protected function installInertiaSsrStack($useTypeScript = false)
     {
         $this->updateNodePackages(function ($packages) {
             return [
@@ -572,13 +754,20 @@ EOF;
             ] + $packages;
         });
 
-        copy(__DIR__.'/../../stubs/inertia/resources/js/ssr.js', resource_path('js/ssr.js'));
-        $this->replaceInFile("input: 'resources/js/app.js',", "input: 'resources/js/app.js',".PHP_EOL."            ssr: 'resources/js/ssr.js',", base_path('vite.config.js'));
+        $ssrFile = $useTypeScript ? 'ssr.ts' : 'ssr.js';
+        $appFile = $useTypeScript ? 'app.ts' : 'app.js';
+        $viteFile = $useTypeScript ? 'vite.config.ts' : 'vite.config.js';
+        $buildCommand = $useTypeScript ? 'vue-tsc && vite build && vite build --ssr' : 'vite build && vite build --ssr';
+        $inertiaStubPath = $useTypeScript ? 'inertia-ts' : 'inertia';
 
+        copy(__DIR__."/../../stubs/$inertiaStubPath/resources/js/$ssrFile", resource_path("js/$ssrFile"));
+        $this->replaceInFile("input: 'resources/js/$appFile',", "input: 'resources/js/$appFile',".PHP_EOL."            ssr: 'resources/js/$ssrFile',", base_path($viteFile));
+
+        // Lean on the default inertia stack here, TS support is really on the Vue/TS files
         (new Filesystem)->ensureDirectoryExists(app_path('Http/Middleware'));
         copy(__DIR__.'/../../stubs/inertia/app/Http/Middleware/HandleInertiaRequests.php', app_path('Http/Middleware/HandleInertiaRequests.php'));
 
-        $this->replaceInFile('vite build', 'vite build && vite build --ssr', base_path('package.json'));
+        $this->replaceInFile('vite build', $buildCommand, base_path('package.json'));
         $this->replaceInFile('/node_modules', '/bootstrap/ssr'.PHP_EOL.'/node_modules', base_path('.gitignore'));
     }
 
