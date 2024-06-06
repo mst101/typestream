@@ -527,7 +527,6 @@ EOF;
         copy(__DIR__.'/../../stubs/inertia-ts/tailwind.config.ts', base_path('tailwind.config.ts'));
         copy(__DIR__.'/../../stubs/inertia-ts/postcss.config.js', base_path('postcss.config.js'));
         copy(__DIR__.'/../../stubs/inertia-ts/vite.config.ts', base_path('vite.config.ts'));
-        copy(__DIR__.'/../../stubs/inertia-ts/vite.config.ts', base_path('vite.config.ts'));
 
         // tscsonfig.json...
         copy(__DIR__.'/../../stubs/inertia-ts/tsconfig.json', base_path('tsconfig.json'));
