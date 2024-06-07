@@ -366,7 +366,7 @@ EOF;
         });
 
         // Tailwind Configuration...
-        copy(__DIR__.'/../../stubs/inertia/tailwind.config.js', base_path('tailwind.config.ts'));
+        copy(__DIR__.'/../../stubs/inertia/tailwind.config.js', base_path('tailwind.config.js'));
         copy(__DIR__.'/../../stubs/inertia/postcss.config.js', base_path('postcss.config.js'));
         copy(__DIR__.'/../../stubs/inertia/vite.config.js', base_path('vite.config.js'));
 
@@ -534,7 +534,7 @@ EOF;
         }
 
         if ($this->option('ssr')) {
-            $this->installInertiaSsrStack(true);
+            $this->installInertiaSsrStack($withTypeScriptSupport);
         }
 
         if (! $this->option('dark')) {
