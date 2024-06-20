@@ -414,7 +414,7 @@ EOF;
         copy(__DIR__.'/../../stubs/inertia-ts/postcss.config.js', base_path('postcss.config.js'));
         copy(__DIR__.'/../../stubs/inertia-ts/vite.config.ts', base_path('vite.config.ts'));
 
-        // tscsonfig.json...
+        // TypeScript configuration...
         copy(__DIR__.'/../../stubs/inertia-ts/tsconfig.json', base_path('tsconfig.json'));
 
         // Types...
@@ -534,7 +534,7 @@ EOF;
         }
 
         if ($this->option('ssr')) {
-            $this->installInertiaSsrStack($withTypeScriptSupport);
+            $this->installInertiaSsrStack($withTypeScriptSupport, $inertiaStubPath);
         }
 
         if (! $this->option('dark')) {
@@ -644,10 +644,11 @@ EOF;
      * Install the Inertia SSR stack into the application.
      *
      * @param bool $useTypeScript
+     * @param string $inertiaStubPath
      *
      * @return void
      */
-    protected function installInertiaSsrStack($useTypeScript = false)
+    protected function installInertiaSsrStack($useTypeScript, $inertiaStubPath)
     {
         $this->updateNodePackages(function ($packages) {
             return [
@@ -659,14 +660,12 @@ EOF;
         $appFile = 'app.js';
         $viteFile = 'vite.config.js';
         $buildCommand = 'vite build && vite build --ssr';
-        $inertiaStubPath = 'inertia';
 
         if ($useTypeScript) {
             $ssrFile = 'ssr.ts';
             $appFile = 'app.ts';
             $viteFile = 'vite.config.ts';
             $buildCommand = 'vue-tsc && vite build && vite build --ssr';
-            $inertiaStubPath = 'inertia-ts';
         }
 
         copy(__DIR__."/../../stubs/$inertiaStubPath/resources/js/$ssrFile", resource_path("js/$ssrFile"));
