@@ -21,7 +21,7 @@
 
 ## Introduction
 
-Laravel Jetstream is a beautifully designed application scaffolding for Laravel. Jetstream provides the perfect starting point for your next Laravel application and includes login, registration, email verification, two-factor authentication, session management, API support via [Laravel Sanctum](https://github.com/laravel/sanctum), and optional team management.
+Typestream is Laravel Jetstream fork beautifully designed application scaffolding for Laravel. Jetstream provides the perfect starting point for your next Laravel application and includes login, registration, email verification, two-factor authentication, session management, API support via [Laravel Sanctum](https://github.com/laravel/sanctum), and optional team management.
 
 Jetstream is designed using [Tailwind CSS](https://tailwindcss.com) and offers your choice of [Livewire](https://jetstream.laravel.com/stacks/livewire.html) or [Inertia](https://jetstream.laravel.com/stacks/inertia.html) scaffolding.
 For those using the Inertia stack, you may optionally choose to use [TypeScript](https://www.typescriptlang.org/) as well.
