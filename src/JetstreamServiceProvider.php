@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\View\Compilers\BladeCompiler;
 use Inertia\Inertia;
 use Laravel\Fortify\Events\PasswordUpdatedViaController;
@@ -77,7 +78,7 @@ class JetstreamServiceProvider extends ServiceProvider
             ]);
         });
 
-        if (config('jetstream.stack') === 'inertia' && class_exists(Inertia::class)) {
+        if (Str::contains(config('jetstream.stack'), 'inertia') && class_exists(Inertia::class)) {
             $this->bootInertia();
         }
 
