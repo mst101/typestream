@@ -430,6 +430,9 @@ EOF;
         (new Filesystem)->delete(resource_path('js/app.js'));
         (new Filesystem)->delete(resource_path('js/bootstrap.js'));
 
+        // Set the stack name in config...
+        $this->replaceInFile('inertia-ts', 'livewire', config_path('jetstream.php'));
+
         return $this->installDefaultIntertiaStack(true);
     }
 
