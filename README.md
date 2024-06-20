@@ -50,6 +50,13 @@ cd example-app
 composer require joeymckenzie/jetstream
 ```
 
+Refer to the official documentation for the available artisan install commands. Typestream offers the additional `--typescript` option for Inertia stacks:
+
+```bash
+## Installs Vue-based Inertia with TypeScript support, though all other options also work
+php artisan jetstream:install inertia --typescript
+```
+
 ## Contributing
 
 Thank you for considering contributing to Jetstream! You can read the contribution guide [here](.github/CONTRIBUTING.md).
