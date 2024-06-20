@@ -7,6 +7,7 @@
         "issues": "https://github.com/joeymckenzie/typestream/issues",
         "source": "https://github.com/joeymckenzie/typestream"
     },
+    "version": "0.1.0",
     "authors": [
         {
             "name": "Joey McKenzie",
