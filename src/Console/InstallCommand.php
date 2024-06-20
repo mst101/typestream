@@ -38,6 +38,7 @@ class InstallCommand extends Command implements PromptsForMissingInput
                                               {--pest : Indicates if Pest should be installed}
                                               {--ssr : Indicates if Inertia SSR support should be installed}
                                               {--typescript : Indicates if Inertia TypeScript support should be installed}
+                                              {--typescript : Indicates if ESLint for Inertia stacks support should be installed (only supported for TS integration)}
                                               {--composer=global : Absolute path to the Composer binary which should be used to install packages}';
 
     /**
@@ -429,6 +430,21 @@ EOF;
         (new Filesystem)->delete(base_path('tailwind.config.js'));
         (new Filesystem)->delete(resource_path('js/app.js'));
         (new Filesystem)->delete(resource_path('js/bootstrap.js'));
+
+        if ($this->option('eslint')) {
+            // Add ESLint dependencies, if requested...
+            $this->updateNodePackages(function ($packages) {
+                return [
+                        '@antfu/eslint-config' => '^2.19.1',
+                        'eslint' => '^9.3.0',
+                        'eslint-plugin-tailwindcss' => '^3.17.0',
+                        'vue-eslint-parser' => '^9.4.2',
+                    ] + $packages;
+            });
+
+            // Copy over eslint config...
+            copy(__DIR__.'/../../stubs/inertia-ts/eslint.config.js', base_path('eslint.config.js'));
+        }
 
         // Set the stack name in config...
         $this->replaceInFile('inertia-ts', 'livewire', config_path('jetstream.php'));
